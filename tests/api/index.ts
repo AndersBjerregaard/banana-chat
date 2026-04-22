@@ -1,4 +1,4 @@
-const WS_URL = "ws://localhost:3000/ws/subscribe";
+const WS_URL = "ws://localhost:3000/ws/subscribe/user1";
 const TRIGGER_URL = "http://localhost:3000/notify/HelloFromBun";
 
 console.log("🚀 Starting Integration Test...");
