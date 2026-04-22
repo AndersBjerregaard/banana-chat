@@ -13,8 +13,7 @@ pub fn create_router(state: SharedState) -> Router {
 async fn trigger_notification(
     axum::extract::Path(msg): axum::extract::Path<String>,
     axum::extract::State(state): axum::extract::State<SharedState>,
-) -> &'static str {
-    // Broadcast message
+) -> () {
+    println!("Broadcasting message...");
     let _ = state.hub.tx.send(msg);
-    "Notification sent!"
 }

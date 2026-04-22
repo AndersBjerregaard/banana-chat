@@ -15,6 +15,7 @@ pub async fn ws_handler(
 async fn handle_socket(socket: WebSocket, state: SharedState) {
     let (mut sender, _) = socket.split();
     let mut rx = state.hub.tx.subscribe();
+    println!("New connection established.");
 
     while let Ok(msg) = rx.recv().await {
         if sender.send(Message::Text(msg.into())).await.is_err() {
