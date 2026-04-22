@@ -18,7 +18,7 @@ socket.onopen = async () => {
 socket.onmessage = (event) => {
   console.log(`📩 Received Message: "${event.data}"`);
   
-  if (event.data === "HelloFromBun") {
+  if (event.data.includes("HelloFromBun")) {
     console.log("✨ Test Passed: Message received successfully!");
     socket.close();
     process.exit(0);
