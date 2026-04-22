@@ -2,9 +2,12 @@ const WS_URL = "ws://localhost:3000/ws/subscribe";
 const BASE_NOTIFY_URL = "http://localhost:3000/notify";
 
 console.log("🛠️  Interactive Hub Client Started");
+
+const username = prompt("✍️ Enter a username:");
+
 console.log(`🔗 Connecting to ${WS_URL}...`);
 
-const socket = new WebSocket(WS_URL);
+const socket = new WebSocket(WS_URL + "/" + username);
 
 socket.onopen = () => {
   console.log("✅ Connected! You can now send messages.");
