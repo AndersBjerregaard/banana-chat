@@ -36,9 +36,6 @@ pub fn channel<T>(capacity: usize) -> (Sender<T>, Receiver<T>)
 where
     T: Clone,
 ```
----
-`T` = `String`
----
 
 Create a bounded, multi-producer, multi-consumer channel where each sent
 value is broadcasted to all active receivers.
