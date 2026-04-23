@@ -1,0 +1,10 @@
+[package]
+name = "ws-client"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+futures-util = "0.3.32"
+reqwest = "0.13.2"
+tokio = { version = "1.52.1", features = ["full"] }
+tokio-tungstenite = "0.29.0"
