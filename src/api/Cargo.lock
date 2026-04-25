@@ -86,6 +86,7 @@ dependencies = [
  "chrono",
  "futures-util",
  "tokio",
+ "tower",
 ]
 
 [[package]]
