@@ -79,7 +79,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "banana-chat"
+name = "banana_chat"
 version = "0.1.0"
 dependencies = [
  "axum",

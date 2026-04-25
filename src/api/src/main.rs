@@ -1,10 +1,6 @@
-mod state;
-mod routes;
-mod handlers;
-
 use std::sync::Arc;
+use banana_chat::{routes, state::{AppHub, AppState}};
 use tokio::sync::broadcast;
-use crate::state::{AppState, AppHub};
 
 #[tokio::main]
 async fn main() {
