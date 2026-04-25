@@ -1,78 +1,67 @@
-use std::{borrow::Cow, io};
-
-use futures_util::{StreamExt};
-use reqwest::StatusCode;
-use tokio_tungstenite::{connect_async, tungstenite::{client::IntoClientRequest, http::Request}};
-use urlencoding::encode;
+use futures_util::StreamExt;
+use std::io::{self, Write};
+use tokio::io::{AsyncBufReadExt, BufReader};
+use reqwest::Client;
 
 #[tokio::main]
-async fn main() {
-    let ws_url: String = String::from("ws://localhost:3000/ws/subscribe");
-    let base_notify_url: String = String::from("http://localhost:3000/notify");
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let ws_url = "ws://localhost:3000/ws/subscribe";
+    let base_notify_url = "http://localhost:3000/notify";
+    let client = Client::new();
 
-    println!("Interactive Hub Client Started");
+    println!("🛠️ Interactive Hub Client Started");
+    print!("✍️ Enter a username: ");
+    io::stdout().flush()?; // Ensure prompt appears before input
 
-    println!("Enter a username: ");
+    let mut stdin_reader = BufReader::new(tokio::io::stdin());
+    let mut username = String::new();
+    stdin_reader.read_line(&mut username).await?;
+    let username = username.trim();
 
-    let mut username: String = String::new();
+    let ws_full_url = format!("{}/{}", ws_url, username);
+    println!("🔗 Connecting to {}...", ws_full_url);
 
-    io::stdin()
-        .read_line(&mut username)
-        .expect("Failed to read line");
+    let (ws_stream, _) = tokio_tungstenite::connect_async(&ws_full_url).await?;
+    let (mut _write, mut read) = ws_stream.split();
 
-    let ws_full_url: String = format!("{}/{}", ws_url, username.trim());
-
-    println!("Connecting to {}", ws_full_url);
-
-    // Connect to websocket
-    let request: Request<()> = ws_full_url.as_str().into_client_request().unwrap();
-
-    let (stream, _) = connect_async(request).await.expect("Failed to connect");
-    let (_, read) = stream.split();
-
+    // Task for incoming messages
     tokio::spawn(async move {
-        read.for_each(|message| async {
+        while let Some(message) = read.next().await {
             match message {
-                Ok(msg) => println!("\n [Broadcast Received]: {}", msg),
-                Err(e) => eprintln!("Error: {}", e),
+                Ok(msg) => println!("\n📥 [Broadcast Received]: {}", msg),
+                Err(e) => {
+                    eprintln!("\n🔌 Connection error: {}", e);
+                    break;
+                }
             }
-        }).await;
+        }
+        println!("\n🔌 Server closed the connection. Press Enter to exit.");
     });
 
-    let client = reqwest::Client::new();
-
+    // Main Input Loop
     loop {
-        println!("Enter a message to broadcast: ");
+        print!("✍️ Enter message to broadcast: ");
+        io::stdout().flush()?;
 
-        let mut message: String = String::new();
+        let mut input = String::new();
+        stdin_reader.read_line(&mut input).await?;
+        let input = input.trim();
 
-        io::stdin()
-            .read_line(&mut message)
-            .expect("Failed to read line");
-
-        let message_str: &str = message.trim();
-
-        if message_str == "quit" || message_str == "exit" {
+        if input.is_empty() || input == "exit" || input == "quit" {
             break;
         }
 
-        println!("Broadcasting '{}' ...", message_str);
+        let notify_url = format!("{}/{}", base_notify_url, urlencoding::encode(input));
 
-        let encoded: Cow<str> = encode(message_str);
-
-        let notify_url: String = format!("{}/{}", base_notify_url, encoded);
-
-        let response = client.post(notify_url)
-            .send()
-            .await
-            .expect("Error broadcasting message");
-
-        let status: StatusCode = response.status();
-
-        if !status.is_success() {
-            println!("Error response: {response:#?}");
+        match client.post(&notify_url).send().await {
+            Ok(resp) if !resp.status().is_success() => {
+                eprintln!("⚠️ Failed to notify: {}", resp.status());
+            }
+            Err(e) => eprintln!("❌ Fetch error: {}", e),
+            _ => {} // Success
         }
     }
 
-    println!("Exiting...");
+    println!("👋 Closing connection...");
+    Ok(())
 }
