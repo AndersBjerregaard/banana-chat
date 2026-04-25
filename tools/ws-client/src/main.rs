@@ -1,12 +1,14 @@
-use std::{io};
+use std::{borrow::Cow, io};
 
-use futures_util::StreamExt;
+use futures_util::{StreamExt};
+use reqwest::StatusCode;
 use tokio_tungstenite::{connect_async, tungstenite::{client::IntoClientRequest, http::Request}};
+use urlencoding::encode;
 
 #[tokio::main]
 async fn main() {
     let ws_url: String = String::from("ws://localhost:3000/ws/subscribe");
-    // let base_notify_url: String = String::from("http://localhost:3000/notify");
+    let base_notify_url: String = String::from("http://localhost:3000/notify");
 
     println!("Interactive Hub Client Started");
 
@@ -37,5 +39,40 @@ async fn main() {
         }).await;
     });
 
-    println!("Ready!");
+    let client = reqwest::Client::new();
+
+    loop {
+        println!("Enter a message to broadcast: ");
+
+        let mut message: String = String::new();
+
+        io::stdin()
+            .read_line(&mut message)
+            .expect("Failed to read line");
+
+        let message_str: &str = message.trim();
+
+        if message_str == "quit" || message_str == "exit" {
+            break;
+        }
+
+        println!("Broadcasting '{}' ...", message_str);
+
+        let encoded: Cow<str> = encode(message_str);
+
+        let notify_url: String = format!("{}/{}", base_notify_url, encoded);
+
+        let response = client.post(notify_url)
+            .send()
+            .await
+            .expect("Error broadcasting message");
+
+        let status: StatusCode = response.status();
+
+        if !status.is_success() {
+            println!("Error response: {response:#?}");
+        }
+    }
+
+    println!("Exiting...");
 }

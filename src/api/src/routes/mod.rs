@@ -6,7 +6,7 @@ mod websocket;
 pub fn create_router(state: SharedState) -> Router {
     Router::new()
         .nest("/ws", websocket::routes()) // Nesting for organization
-        .route("/notify/{msg}", axum::routing::get(trigger_notification))
+        .route("/notify/{msg}", axum::routing::post(trigger_notification))
         .with_state(state)
 }
 
