@@ -1,8 +1,8 @@
-use std::sync::Arc;
-use axum::{Router, body::Body, http::{Request, Response, StatusCode}};
+use std::{sync::Arc};
+use axum::{Router, body::Body, http::{Request, Response}};
 use banana_chat::{routes, state::{AppHub, AppState}};
 use tokio::sync::broadcast;
-use tower::{Service, ServiceExt};
+use tower::{ServiceExt};
 
 #[tokio::test]
 async fn it_broadcasts() {
@@ -10,18 +10,20 @@ async fn it_broadcasts() {
     let state = Arc::new(AppState {
         hub: AppHub { tx },
     });
-
-    let mut app: Router = routes::create_router(state);
+    let mut rx: broadcast::Receiver<String> = state.hub.tx.subscribe();
+    let app: Router = routes::create_router(state);
 
     let request: Request<Body> = Request::builder()
         .method("POST")
-        .uri("http://localhost:3000/notify/hello")
+        .uri("/notify/hello")
         .body(Body::empty())
         .unwrap();
 
-    let response: Response<Body> = app.as_service().ready().await.unwrap().call(request).await.unwrap();
+    let response: Response<Body> = app.oneshot(request).await.unwrap();
 
-    let status: StatusCode = response.status();
+    assert!(response.status().is_success());
 
-    assert!(status.is_success());
+    let value: String = rx.try_recv().unwrap();
+
+    assert_eq!("hello", value);
 }
