@@ -29,7 +29,7 @@ where S: Sink<AxMsg> + Unpin,
 
     while let Ok(msg) = rx.recv().await {
         let local_now: DateTime<Local> = Local::now();
-        let full_message: String = format!("[{}]: {}", local_now,  msg);
+        let full_message: String = format!("[{}] {}", local_now,  msg);
 
         if sender.send(Message::Text(full_message.into())).await.is_err() {
             eprintln!("Error receiving message");

@@ -25,7 +25,8 @@ async fn it_broadcasts() {
 
     let value: String = rx.try_recv().unwrap();
 
-    assert_eq!("hello", value);
+    // Expect user to be set as 'anon' because no username was set
+    assert_eq!("anon: hello", value);
 }
 
 #[tokio::test]
