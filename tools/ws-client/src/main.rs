@@ -53,12 +53,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let notify_url = format!("{}/{}", base_notify_url, urlencoding::encode(input));
 
-        match client.post(&notify_url).send().await {
-            Ok(resp) if !resp.status().is_success() => {
-                eprintln!("⚠️ Failed to notify: {}", resp.status());
-            }
-            Err(e) => eprintln!("❌ Fetch error: {}", e),
-            _ => {} // Success
+        match client
+            .post(&notify_url)
+            .header("x-user", username)
+            .send()
+            .await {
+                Ok(resp) if !resp.status().is_success() => {
+                    eprintln!("⚠️ Failed to notify: {}", resp.status());
+                }
+                Err(e) => eprintln!("❌ Fetch error: {}", e),
+                _ => {} // Success
         }
     }
 
