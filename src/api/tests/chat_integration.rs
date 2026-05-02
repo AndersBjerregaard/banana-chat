@@ -1,6 +1,6 @@
 use std::{sync::Arc};
 use axum::{Router, body::Body, http::{Request, Response}};
-use banana_chat::{routes, state::{AppHub, AppState}};
+use banana_chat::{state::{AppHub, AppState}};
 use tokio::sync::broadcast;
 use tower::{ServiceExt};
 
@@ -11,7 +11,9 @@ async fn it_broadcasts() {
         hub: AppHub { tx },
     });
     let mut rx: broadcast::Receiver<String> = state.hub.tx.subscribe();
-    let app: Router = routes::create_router(state);
+    let app: Router = Router::new()
+        .route("/notify/{msg}", axum::routing::post(banana_chat::handlers::notify_handler::notify_handler))
+        .with_state(state);
 
     let request: Request<Body> = Request::builder()
         .method("POST")
