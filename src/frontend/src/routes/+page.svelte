@@ -314,7 +314,7 @@
 						<!-- Scroll Area -->
 					    <div
 					    	bind:this={chatContainer}
-					    	class="h-full overflow-y-auto px-6 py-6 scroll-smooth [scrollbar-gutter:stable]"
+					    	class="chat-scroll transform-gpu h-full overflow-y-auto overscroll-contain scroll-smooth px-6 py-6 [scrollbar-gutter:stable]"
 					    >
                             <div class="space-y-4">
 					    	{#if messages.length === 0}

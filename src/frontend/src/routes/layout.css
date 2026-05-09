@@ -16,6 +16,45 @@ body {
 		sans-serif;
 }
 
-/* body { */
-/* 	background: oklch(98% 0.01 250); */
-/* } */
+:global(.chat-scroll) {
+	scrollbar-width: thin;
+	scrollbar-color: rgba(255,255,255,0.12) transparent;
+    -webkit-overflow-scrolling: touch;
+    transform: translateZ(0);
+}
+
+:global(.chat-scroll::-webkit-scrollbar) {
+	width: 10px;
+}
+
+:global(.chat-scroll::-webkit-scrollbar-track) {
+	background: transparent;
+	margin-block: 10px;
+}
+
+:global(.chat-scroll::-webkit-scrollbar-thumb) {
+	border-radius: 999px;
+
+	background:
+		linear-gradient(
+			to bottom,
+			rgba(217,70,239,0.35),
+			rgba(139,92,246,0.35),
+			rgba(34,211,238,0.35)
+		);
+
+	border: 2px solid transparent;
+	background-clip: padding-box;
+
+	backdrop-filter: blur(10px);
+}
+
+:global(.chat-scroll::-webkit-scrollbar-thumb:hover) {
+	background:
+		linear-gradient(
+			to bottom,
+			rgba(217,70,239,0.55),
+			rgba(139,92,246,0.55),
+			rgba(34,211,238,0.55)
+		);
+}
