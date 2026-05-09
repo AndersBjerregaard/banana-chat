@@ -56,6 +56,8 @@
 		};
 
 		socket.onmessage = async (event) => {
+            const shouldScroll = isNearBottom();
+
 			messages = [
 				...messages,
 				{
@@ -66,7 +68,9 @@
 				}
 			];
 
-			await scrollToBottom();
+			if (shouldScroll) {
+                await scrollToBottom();
+            }
 		};
 
 		socket.onclose = () => {
@@ -81,8 +85,23 @@
 		};
 	}
 
+	function isNearBottom() {
+		if (!chatContainer) return true;
+	
+		const threshold = 120;
+	
+		return (
+			chatContainer.scrollHeight -
+				chatContainer.scrollTop -
+				chatContainer.clientHeight <
+			threshold
+		);
+	}
+
 	async function sendMessage() {
 		if (!input.trim()) return;
+            
+        const shouldScroll = isNearBottom();
 
 		const msg = input;
 
@@ -106,7 +125,9 @@
 			}
 		});
 
-		await scrollToBottom();
+        if (shouldScroll) {
+            await scrollToBottom();
+        }
 	}
 
 	async function scrollToBottom() {
@@ -153,10 +174,10 @@
 		class="relative z-10 flex min-h-screen items-center justify-center p-6"
 	>
 		<div
-			class="w-full max-w-5xl overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 shadow-2xl backdrop-blur-xl"
+			class="flex h-[780px] w-full max-w-5xl overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 shadow-2xl backdrop-blur-xl"
 			in:scale={{ duration: 500 }}
 		>
-			<div class="grid min-h-[780px] grid-cols-1 lg:grid-cols-[320px_1fr]">
+			<div class="grid h-full w-full grid-cols-1 lg:grid-cols-[320px_1fr]">
 				<!-- Sidebar -->
 				<div
 					class="relative border-b border-white/10 bg-gradient-to-b from-zinc-900/80 to-black/40 p-8 lg:border-b-0 lg:border-r"
@@ -182,7 +203,7 @@
 							<h1
 								class="bg-gradient-to-r from-fuchsia-300 via-violet-300 to-cyan-300 bg-clip-text text-4xl font-black tracking-tight text-transparent"
 							>
-								Nebula Chat
+								Banana Chat
 							</h1>
 
 							<p class="mt-3 text-sm leading-relaxed text-zinc-400">
@@ -258,7 +279,7 @@
 				</div>
 
 				<!-- Chat -->
-				<div class="flex flex-col">
+				<div class="flex h-full min-h-0 flex-col">
 					<!-- Header -->
 					<div
 						class="flex items-center justify-between border-b border-white/10 bg-black/20 px-6 py-5 backdrop-blur-xl"
@@ -281,82 +302,95 @@
 					</div>
 
 					<!-- Messages -->
-					<div
-						bind:this={chatContainer}
-						class="flex-1 space-y-4 overflow-y-auto px-6 py-6"
-					>
-						{#if messages.length === 0}
-							<div
-								class="flex h-full items-center justify-center"
-								in:fade
-							>
-								<div class="text-center">
-									<div
-										class="mb-5 text-7xl opacity-40"
-									>
-										✦
-									</div>
+                    <div class="relative flex-1 min-h-0">
+                        <!-- Top Fade -->
+						<div
+							class="pointer-events-none absolute top-0 left-0 right-0 z-10 h-16 bg-gradient-to-b from-[#09090f] to-transparent"
+						></div>
+						<!-- Bottom Fade -->
+						<div
+							class="pointer-events-none absolute bottom-0 left-0 right-0 z-10 h-16 bg-gradient-to-t from-[#09090f] to-transparent"
+						></div>
+						<!-- Scroll Area -->
+					    <div
+					    	bind:this={chatContainer}
+					    	class="h-full overflow-y-auto px-6 py-6 scroll-smooth [scrollbar-gutter:stable]"
+					    >
+                            <div class="space-y-4">
+					    	{#if messages.length === 0}
+					    		<div
+					    			class="flex h-full items-center justify-center"
+					    			in:fade
+					    		>
+					    			<div class="text-center">
+					    				<div
+					    					class="mb-5 text-7xl opacity-40"
+					    				>
+					    					✦
+					    				</div>
 
-									<h3
-										class="text-xl font-semibold text-zinc-300"
-									>
-										No messages yet
-									</h3>
+					    				<h3
+					    					class="text-xl font-semibold text-zinc-300"
+					    				>
+					    					No messages yet
+					    				</h3>
 
-									<p class="mt-2 text-zinc-500">
-										Connect and start chatting.
-									</p>
-								</div>
+					    				<p class="mt-2 text-zinc-500">
+					    					Connect and start chatting.
+					    				</p>
+					    			</div>
+					    		</div>
+					    	{/if}
+
+					    	{#each messages as message (message.id)}
+					    		<div
+					    			class={`flex ${
+					    				message.self
+					    					? 'justify-end'
+					    					: 'justify-start'
+					    			}`}
+					    			in:fly={{
+					    				y: 20,
+					    				duration: 350,
+					    				easing: cubicOut
+					    			}}
+					    		>
+					    			<div
+					    				class={`max-w-[75%] rounded-3xl border px-5 py-4 shadow-lg backdrop-blur-xl transition-all duration-300 ${
+					    					message.self
+					    						? 'border-fuchsia-500/20 bg-gradient-to-br from-fuchsia-500/20 to-violet-500/10'
+					    						: 'border-white/10 bg-white/5'
+					    				}`}
+					    			>
+					    				<div
+					    					class="mb-2 flex items-center gap-2 text-xs"
+					    				>
+					    					<span
+					    						class={`font-semibold ${
+					    							message.self
+					    								? 'text-fuchsia-300'
+					    								: 'text-cyan-300'
+					    						}`}
+					    					>
+					    						{message.user}
+					    					</span>
+
+					    					<span class="text-zinc-500">
+					    						{message.timestamp.toLocaleTimeString()}
+					    					</span>
+					    				</div>
+
+					    				<p
+					    					class="leading-relaxed text-zinc-100"
+					    				>
+					    					{message.text}
+					    				</p>
+					    			</div>
+					    		</div>
+					    	{/each}
 							</div>
-						{/if}
-
-						{#each messages as message (message.id)}
-							<div
-								class={`flex ${
-									message.self
-										? 'justify-end'
-										: 'justify-start'
-								}`}
-								in:fly={{
-									y: 20,
-									duration: 350,
-									easing: cubicOut
-								}}
-							>
-								<div
-									class={`max-w-[75%] rounded-3xl border px-5 py-4 shadow-lg backdrop-blur-xl transition-all duration-300 ${
-										message.self
-											? 'border-fuchsia-500/20 bg-gradient-to-br from-fuchsia-500/20 to-violet-500/10'
-											: 'border-white/10 bg-white/5'
-									}`}
-								>
-									<div
-										class="mb-2 flex items-center gap-2 text-xs"
-									>
-										<span
-											class={`font-semibold ${
-												message.self
-													? 'text-fuchsia-300'
-													: 'text-cyan-300'
-											}`}
-										>
-											{message.user}
-										</span>
-
-										<span class="text-zinc-500">
-											{message.timestamp.toLocaleTimeString()}
-										</span>
-									</div>
-
-									<p
-										class="leading-relaxed text-zinc-100"
-									>
-										{message.text}
-									</p>
-								</div>
-							</div>
-						{/each}
-					</div>
+					    </div>
+                    </div>
 
 					<!-- Input -->
 					<div
