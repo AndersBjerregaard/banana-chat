@@ -1,6 +1,7 @@
-use futures_util::StreamExt;
+use futures_util::{SinkExt, StreamExt};
+use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, tungstenite::{http::Response}};
 use std::io::{self, Write};
-use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::{io::{AsyncBufReadExt, BufReader}, net::TcpStream};
 use reqwest::Client;
 
 #[tokio::main]
@@ -21,8 +22,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let ws_full_url = format!("{}/{}", ws_url, username);
     println!("🔗 Connecting to {}...", ws_full_url);
 
-    let (ws_stream, _) = tokio_tungstenite::connect_async(&ws_full_url).await?;
-    let (mut _write, mut read) = ws_stream.split();
+    let (ws_stream, _): (WebSocketStream<MaybeTlsStream<TcpStream>>, Response<Option<Vec<u8>>>) = tokio_tungstenite::connect_async(&ws_full_url).await?;
+    let (mut write, mut read) = ws_stream.split();
 
     // Task for incoming messages
     tokio::spawn(async move {
@@ -67,5 +68,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     println!("👋 Closing connection...");
+
+    write.close().await?;
+
     Ok(())
 }
