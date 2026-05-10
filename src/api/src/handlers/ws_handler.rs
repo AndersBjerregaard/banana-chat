@@ -3,6 +3,7 @@ use axum::{
     response::IntoResponse,
 };
 use chrono::{DateTime, Local};
+use futures::Stream;
 use futures_util::{Sink, SinkExt, StreamExt};
 use tokio::sync::broadcast::Receiver;
 use crate::state::SharedState;
@@ -11,31 +12,106 @@ type AxMsg = axum::extract::ws::Message;
 pub async fn ws_handler(
     ws: WebSocketUpgrade,
     State(state): State<SharedState>,
-    Path(username): Path<String>
+    Path(username): Path<String>,
 ) -> impl IntoResponse {
-    ws.on_upgrade(|socket| handle_socket(socket.split().0, state, username))
+    ws.on_upgrade(move |socket| async move {
+        let (sender, receiver) = socket.split();
+
+        handle_socket(
+            sender,
+            receiver,
+            state,
+            username,
+        )
+        .await;
+    })
 }
 
-async fn handle_socket<S>(
+async fn handle_socket<S, R>(
     mut sender: S,
+    mut receiver: R,
     state: SharedState,
     username: String
-)
-where S: Sink<AxMsg> + Unpin,
+) where 
+    S: Sink<AxMsg> + Unpin,
+    R: Stream<Item = Result<AxMsg, axum::Error>> + Unpin
 {
     let mut rx: Receiver<String> = state.hub.tx.subscribe();
+
     let con_local_now: DateTime<Local> = Local::now();
-    println!("[{}] User {} established connection.", con_local_now, username);
 
-    while let Ok(msg) = rx.recv().await {
-        let local_now: DateTime<Local> = Local::now();
-        let full_message: String = format!("[{}] {}", local_now,  msg);
+    println!(
+        "[{}] User {} established connection.",
+        con_local_now,
+        username
+    );
 
-        if sender.send(Message::Text(full_message.into())).await.is_err() {
-            eprintln!("Error receiving message");
-            break;
+    loop {
+        tokio::select! {
+            // Messages coming FROM the client
+            ws_msg = receiver.next() => {
+                match ws_msg {
+                    Some(Ok(Message::Close(_))) => {
+                        println!("{} disconnected gracefully", username);
+                        break;
+                    }
+                    Some(Ok(Message::Ping(payload))) => {
+                        if sender.send(Message::Pong(payload)).await.is_err() {
+                            break;
+                        }
+                    }
+                    Some(Ok(_)) => {
+                        // Ignore other incoming messages
+                    }
+                    Some(Err(err)) => {
+                        eprintln!("websocket error for {}: {}", username, err);
+                        break;
+                    }
+                    None => {
+                        // Stream ended
+                        println!("{} connection closed", username);
+                        break;
+                    }
+                }
+            }
+            // Messages coming FROM broadcast hub
+            hub_msg = rx.recv() => {
+                match hub_msg {
+                    Ok(msg) => {
+                        let local_now: DateTime<Local> = Local::now();
+
+                        let full_message = format!(
+                            "[{}] {}",
+                            local_now,
+                            msg
+                        );
+
+                        if sender
+                            .send(Message::Text(full_message.into()))
+                            .await
+                            .is_err()
+                        {
+                            println!("failed sending to {}", username);
+                            break;
+                        }
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped)) => {
+                        eprintln!(
+                            "{} lagged behind and missed {} messages",
+                            username,
+                            skipped
+                        );
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => {
+                        println!("broadcast channel closed");
+                        break;
+                    }
+                }
+            }
         }
     }
+
+    println!("Cleaning up websocket for {}", username);
 }
 
 #[cfg(test)]
@@ -58,12 +134,14 @@ mod tests {
             hub: AppHub { tx: tx.clone() }
         });
 
-        let (sender, mut receiver) = mpsc::unbounded::<AxMsg>();
+        let (sender, mut sent_messages) = mpsc::unbounded::<AxMsg>();
+
+        let receiver = futures_util::stream::pending::<Result<AxMsg, axum::Error>>();
 
         let username = "testuser".to_string();
 
         tokio::spawn(async move {
-            handle_socket(sender, state, username).await;
+            handle_socket(sender, receiver, state, username).await;
         });
 
         // Yield to let spawned task above subscribe to the channel.
@@ -75,7 +153,7 @@ mod tests {
         };
 
         // Await message being asynchronously broadcasted
-        let received: Message = timeout(Duration::from_millis(100), receiver.next())
+        let received: Message = timeout(Duration::from_millis(100), sent_messages.next())
             .await
             .expect("Timeout waiting for message")
             .expect("Channel closed");
